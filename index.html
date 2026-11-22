@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14171B">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>বাংলা লুডু</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@600;800&family=Hind+Siliguri:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: one centered column (max 560px): header, setup panel, square 15x15 board, then dice and turn panel under the board for thumb reach. */
+:root{
+  --bg:#EEF0F2; --fg:#1D1F24; --muted:#636973; --panel:#FFFFFF; --line:#D3D7DC;
+  --cell:#FFFFFF; --grid:#DADEE3; --paper:#F9FAFB;
+  --red:#D64541; --green:#2F9E5E; --yellow:#E6AC1C; --blue:#2D6CC8;
+  --ink:#1D1F24; --on-ink:#FFFFFF;
+  --font-display:'Baloo Da 2','Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif;
+  --font-body:'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171B; --fg:#ECEEF1; --muted:#9AA1AB; --panel:#1D2127; --line:#3A414B;
+    --cell:#262B32; --grid:#333A43; --paper:#20252B;
+    --red:#E4605B; --green:#43B576; --yellow:#F0BC3A; --blue:#5189E0;
+    --ink:#ECEEF1; --on-ink:#14171B; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171B; --fg:#ECEEF1; --muted:#9AA1AB; --panel:#1D2127; --line:#3A414B;
+  --cell:#262B32; --grid:#333A43; --paper:#20252B;
+  --red:#E4605B; --green:#43B576; --yellow:#F0BC3A; --blue:#5189E0;
+  --ink:#ECEEF1; --on-ink:#14171B; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--font-body); font-size:16px; line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:14px 32px;
+}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header h1{font-family:var(--font-display);font-weight:800;font-size:2.1rem;line-height:1.1;margin:0;letter-spacing:.01em}
+header p{margin:2px 0 0;color:var(--muted);font-size:.95rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.panel h2{font-family:var(--font-display);font-size:1.1rem;margin:0 0 10px;font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:flex;gap:6px}
+.seg button{
+  font:inherit;font-weight:500;padding:8px 16px;border-radius:10px;border:1.5px solid var(--line);
+  background:var(--paper);color:var(--fg);cursor:pointer;min-height:44px
+}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
+.check{display:flex;gap:10px;align-items:center;margin:12px 0;min-height:44px;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--blue)}
+.btn{
+  font:inherit;font-weight:600;padding:10px 18px;border-radius:10px;border:1.5px solid var(--ink);
+  background:var(--ink);color:var(--on-ink);cursor:pointer;min-height:44px
+}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+details{margin-top:12px;color:var(--muted);font-size:.93rem}
+details summary{cursor:pointer;color:var(--fg);font-weight:500}
+details ul{margin:8px 0 0;padding-left:20px}
+details li{margin:3px 0}
+
+/* board */
+.board-box{width:100%;max-width:560px;margin:0 auto}
+#board{
+  position:relative;width:100%;aspect-ratio:1;display:grid;
+  grid-template-columns:repeat(15,1fr);grid-template-rows:repeat(15,1fr);
+  background:var(--cell);border:3px solid var(--ink);border-radius:12px;overflow:hidden;
+  user-select:none;-webkit-user-select:none;touch-action:manipulation
+}
+.c{border:.5px solid var(--grid);position:relative;min-width:0;min-height:0}
+.c.yard{border:0}
+.c.yard.red{background:var(--red)} .c.yard.green{background:var(--green)}
+.c.yard.yellow{background:var(--yellow)} .c.yard.blue{background:var(--blue)}
+.c.yard.in{background:var(--paper)}
+.c.ctr{border:0;background:transparent}
+.c.h.red{background:color-mix(in srgb,var(--red) 62%,var(--cell))}
+.c.h.green{background:color-mix(in srgb,var(--green) 62%,var(--cell))}
+.c.h.yellow{background:color-mix(in srgb,var(--yellow) 62%,var(--cell))}
+.c.h.blue{background:color-mix(in srgb,var(--blue) 62%,var(--cell))}
+.c.s.red{background:var(--red)} .c.s.green{background:var(--green)}
+.c.s.yellow{background:var(--yellow)} .c.s.blue{background:var(--blue)}
+.c.safe::after,.c.s::after{
+  content:"★";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:min(3.4vw,17px);color:var(--muted);opacity:.75
+}
+.c.s::after{color:#fff;opacity:.95}
+.center-art{
+  position:absolute;left:40%;top:40%;width:20%;height:20%;
+  background:conic-gradient(from -45deg,var(--green) 0 90deg,var(--yellow) 90deg 180deg,var(--blue) 180deg 270deg,var(--red) 270deg 360deg);
+  border:1px solid var(--ink)
+}
+.slot{
+  position:absolute;width:6%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);
+  background:color-mix(in srgb,var(--c) 30%,var(--paper));border:2px solid var(--c)
+}
+.red{--c:var(--red)} .green{--c:var(--green)} .yellow{--c:var(--yellow)} .blue{--c:var(--blue)}
+.tok{
+  position:absolute;width:5.6%;aspect-ratio:1;border-radius:50%;left:0;top:0;
+  transform:translate(-50%,-50%);
+  background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--c) 45%,#fff),var(--c) 68%);
+  border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45);
+  transition:left .17s linear,top .17s linear,transform .15s;
+  padding:0;cursor:default;z-index:5
+}
+.tok.can{cursor:pointer;z-index:8;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 70%,transparent),0 1px 3px rgba(0,0,0,.45)}
+  50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--c) 0%,transparent),0 1px 3px rgba(0,0,0,.45)}
+}
+
+/* hud */
+.hud{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+#dice{
+  width:72px;height:72px;border-radius:14px;border:2px solid var(--ink);background:var(--paper);
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:10px;
+  cursor:pointer;flex:none
+}
+#dice:disabled{cursor:default}
+#dice span{display:block;width:100%;height:100%;border-radius:50%}
+#dice span.on{background:var(--ink);transform:scale(.8)}
+#dice.rolling{animation:shake .14s linear infinite}
+@keyframes shake{0%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}100%{transform:rotate(-6deg)}}
+.hud-main{flex:1;min-width:180px;display:flex;flex-direction:column;gap:6px}
+#turn{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:600;font-size:1.25rem}
+#turn i{width:16px;height:16px;border-radius:50%;background:var(--c);border:2px solid var(--fg);flex:none}
+#msg{margin:0;color:var(--muted);min-height:3em;font-size:.95rem}
+.hud-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){
+  .tok{transition:none}.tok.can,#dice.rolling{animation:none}
+  .tok.can{outline:3px solid var(--c);outline-offset:2px}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>বাংলা লুডু</h1>
+    <p>বন্ধুদের সাথে একই ফোনে বা কম্পিউটারের বিপক্ষে খেলুন।</p>
+  </header>
+
+  <section id="setup" class="panel" aria-label="খেলার সেটিংস">
+    <h2>কতজন খেলবেন?</h2>
+    <div class="seg" id="countSeg" role="group" aria-label="খেলোয়াড় সংখ্যা">
+      <button type="button" data-n="2" aria-pressed="false">২ জন</button>
+      <button type="button" data-n="3" aria-pressed="false">৩ জন</button>
+      <button type="button" data-n="4" aria-pressed="true">৪ জন</button>
+    </div>
+    <label class="check" for="botChk">
+      <input type="checkbox" id="botChk">
+      <span>কম্পিউটারের বিপক্ষে খেলুন (আপনি লাল)</span>
+    </label>
+    <button type="button" class="btn" id="startBtn">খেলা শুরু করুন</button>
+    <details>
+      <summary>নিয়ম দেখুন</summary>
+      <ul>
+        <li>গুটি ঘর থেকে বের করতে ৬ পড়তে হবে।</li>
+        <li>৬ পড়লে, বিপক্ষের গুটি ধরলে বা গুটি মাঝের ঘরে পৌঁছালে আবার চাল পাবেন।</li>
+        <li>তারা চিহ্নিত ও রঙিন শুরুর ঘরে গুটি নিরাপদ, সেখানে ধরা যায় না।</li>
+        <li>বিপক্ষের গুটি ধরলে সেটি আবার ঘরে ফিরে যায়।</li>
+        <li>মাঝের ঘরে পৌঁছাতে সংখ্যা বেশি হলে সেই গুটি চলে না।</li>
+        <li>টানা তিনবার ৬ পড়লে চাল বাতিল হয়।</li>
+        <li>যার চারটি গুটি আগে মাঝে পৌঁছায়, সেই জেতে।</li>
+      </ul>
+    </details>
+  </section>
+
+  <div class="board-box"><div id="board" aria-label="লুডু বোর্ড"></div></div>
+
+  <section id="hud" class="panel" hidden aria-live="polite">
+    <div class="hud">
+      <button type="button" id="dice" aria-label="ছক্কা ফেলুন"></button>
+      <div class="hud-main">
+        <div id="turn" class="red"><i></i><span id="turnTxt"></span></div>
+        <p id="msg"></p>
+        <div class="hud-actions">
+          <button type="button" class="btn" id="rollBtn">ছক্কা ফেলুন</button>
+          <button type="button" class="btn ghost" id="muteBtn">সাউন্ড: চালু</button>
+          <button type="button" class="btn ghost" id="newBtn">নতুন খেলা</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var COLORS=['red','green','yellow','blue'];
+  var NAME={red:'লাল',green:'সবুজ',yellow:'হলুদ',blue:'নীল'};
+  var GEN={red:'লালের',green:'সবুজের',yellow:'হলুদের',blue:'নীলের'};
+  var START={red:0,green:13,yellow:26,blue:39};
+  var SAFE=new Set([0,8,13,21,26,34,39,47]);
+
+  // 52 shared squares, clockwise from red's start; entries are [col,row]
+  var PATH=[],c,r;
+  for(c=1;c<=5;c++)PATH.push([c,6]);
+  for(r=5;r>=0;r--)PATH.push([6,r]);
+  PATH.push([7,0],[8,0]);
+  for(r=1;r<=5;r++)PATH.push([8,r]);
+  for(c=9;c<=14;c++)PATH.push([c,6]);
+  PATH.push([14,7],[14,8]);
+  for(c=13;c>=9;c--)PATH.push([c,8]);
+  for(r=9;r<=14;r++)PATH.push([8,r]);
+  PATH.push([7,14],[6,14]);
+  for(r=13;r>=9;r--)PATH.push([6,r]);
+  for(c=5;c>=0;c--)PATH.push([c,8]);
+  PATH.push([0,7],[0,6]);
+
+  var HOME={
+    red:[[1,7],[2,7],[3,7],[4,7],[5,7]],
+    green:[[7,1],[7,2],[7,3],[7,4],[7,5]],
+    yellow:[[13,7],[12,7],[11,7],[10,7],[9,7]],
+    blue:[[7,13],[7,12],[7,11],[7,10],[7,9]]
+  };
+  var YARD={
+    red:[[2,2],[4,2],[2,4],[4,4]],
+    green:[[11,2],[13,2],[11,4],[13,4]],
+    yellow:[[11,11],[13,11],[11,13],[13,13]],
+    blue:[[2,11],[4,11],[2,13],[4,13]]
+  };
+  var FIN={red:[6.75,7.5],green:[7.5,6.75],yellow:[8.25,7.5],blue:[7.5,8.25]};
+
+  var board=document.getElementById('board');
+  var homeCell={},startCell={},safeCell={};
+  COLORS.forEach(function(col){
+    HOME[col].forEach(function(p){homeCell[p[0]+','+p[1]]=col;});
+    var s=PATH[START[col]];startCell[s[0]+','+s[1]]=col;
+  });
+  SAFE.forEach(function(i){var p=PATH[i];safeCell[p[0]+','+p[1]]=1;});
+
+  for(r=0;r<15;r++){
+    for(c=0;c<15;c++){
+      var d=document.createElement('div'),key=c+','+r,col=null;
+      if(r<6&&c<6)col='red';
+      else if(r<6&&c>8)col='green';
+      else if(r>8&&c>8)col='yellow';
+      else if(r>8&&c<6)col='blue';
+      if(col){
+        var oc=c<6?0:9,or=r<6?0:9,lc=c-oc,lr=r-or;
+        d.className='c yard '+col+((lr>=1&&lr<=4&&lc>=1&&lc<=4)?' in':'');
+      }else if(r>=6&&r<=8&&c>=6&&c<=8){
+        d.className='c ctr';
+      }else{
+        d.className='c p';
+        if(homeCell[key])d.className+=' h '+homeCell[key];
+        if(startCell[key])d.className+=' s '+startCell[key];
+        else if(safeCell[key])d.className+=' safe';
+      }
+      board.appendChild(d);
+    }
+  }
+  var art=document.createElement('div');art.className='center-art';board.appendChild(art);
+  COLORS.forEach(function(col){
+    YARD[col].forEach(function(p){
+      var s=document.createElement('div');s.className='slot '+col;
+      s.style.left=(p[0]/15*100)+'%';s.style.top=(p[1]/15*100)+'%';
+      board.appendChild(s);
+    });
+  });
+
+  var P={},tokEls={},game=null,gid=0,setupCount=4,setupBots=false;
+  function bn(n){return String(n).replace(/\d/g,function(x){return '০১২৩৪৫৬৭৮৯'[x];});}
+  function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+  // sound: synthesized with Web Audio, no files needed
+  var actx=null,muted=false;
+  function ac(){
+    if(muted)return null;
+    try{
+      if(!actx){var A=window.AudioContext||window.webkitAudioContext;if(!A)return null;actx=new A();}
+      if(actx.state==='suspended')actx.resume();
+    }catch(e){return null;}
+    return actx;
+  }
+  function tone(f,t0,dur,type,vol){
+    var a=ac();if(!a)return;
+    try{
+      var o=a.createOscillator(),g=a.createGain(),s=a.currentTime+t0;
+      o.type=type||'sine';o.frequency.setValueAtTime(f,s);
+      g.gain.setValueAtTime(0.0001,s);
+      g.gain.exponentialRampToValueAtTime(vol||0.15,s+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,s+dur);
+      o.connect(g);g.connect(a.destination);o.start(s);o.stop(s+dur+0.02);
+    }catch(e){}
+  }
+  function sfx(n){
+    if(n==='tick')tone(300+Math.random()*500,0,.05,'square',.06);
+    else if(n==='land'){tone(520,0,.09,'triangle',.2);tone(780,.07,.12,'triangle',.2);}
+    else if(n==='step')tone(440,0,.06,'sine',.14);
+    else if(n==='out'){tone(392,0,.1,'triangle',.2);tone(587,.09,.14,'triangle',.2);}
+    else if(n==='cap'){tone(300,0,.12,'sawtooth',.16);tone(180,.1,.22,'sawtooth',.16);}
+    else if(n==='home'){[523,659,784].forEach(function(f,i){tone(f,i*.1,.18,'triangle',.2);});}
+    else if(n==='no')tone(160,0,.25,'sine',.15);
+    else if(n==='win'){[523,659,784,1047,784,1047].forEach(function(f,i){tone(f,i*.14,.22,'triangle',.22);});}
+  }
+  function playersFor(n){return n===2?['red','yellow']:n===3?['red','green','yellow']:COLORS.slice();}
+
+  function coords(col,i,p){
+    if(p===-1)return YARD[col][i];
+    if(p<=50){var q=PATH[(START[col]+p)%52];return [q[0]+0.5,q[1]+0.5];}
+    if(p<=55){var h=HOME[col][p-51];return [h[0]+0.5,h[1]+0.5];}
+    return FIN[col];
+  }
+
+  function createTokens(players){
+    Object.keys(tokEls).forEach(function(k){tokEls[k].forEach(function(e){e.remove();});});
+    tokEls={};P={};
+    players.forEach(function(col){
+      P[col]=[-1,-1,-1,-1];tokEls[col]=[];
+      for(var i=0;i<4;i++){
+        (function(col,i){
+          var b=document.createElement('button');
+          b.type='button';b.className='tok '+col;
+          b.setAttribute('aria-label',NAME[col]+' গুটি '+bn(i+1));
+          b.addEventListener('click',function(){onTok(col,i);});
+          board.appendChild(b);tokEls[col].push(b);
+        })(col,i);
+      }
+    });
+    render();
+  }
+
+  function render(){
+    var groups={};
+    Object.keys(tokEls).forEach(function(col){
+      tokEls[col].forEach(function(el,i){
+        var p=P[col][i],xy=coords(col,i,p),k=xy[0]+','+xy[1];
+        (groups[k]=groups[k]||[]).push({el:el,x:xy[0],y:xy[1],fin:p===56});
+      });
+    });
+    Object.keys(groups).forEach(function(k){
+      var list=groups[k],n=list.length;
+      list.forEach(function(t,j){
+        var o=[0,0];
+        if(n===2)o=[[-.2,0],[.2,0]][j];
+        else if(n===3)o=[[-.2,-.14],[.2,-.14],[0,.2]][j];
+        else if(n>=4)o=[[-.2,-.2],[.2,-.2],[-.2,.2],[.2,.2]][j%4];
+        var s=(t.fin?.62:1)*(n>1?.8:1);
+        t.el.style.left=((t.x+o[0])/15*100)+'%';
+        t.el.style.top=((t.y+o[1])/15*100)+'%';
+        t.el.style.transform='translate(-50%,-50%) scale('+s+')';
+      });
+    });
+  }
+
+  // dice
+  var diceEl=document.getElementById('dice'),pips=[];
+  for(var k=0;k<9;k++){var sp=document.createElement('span');diceEl.appendChild(sp);pips.push(sp);}
+  var FACES={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+  function showDice(n){pips.forEach(function(p,i){p.className=FACES[n].indexOf(i)>-1?'on':'';});}
+  showDice(1);
+
+  var hud=document.getElementById('hud'),setup=document.getElementById('setup');
+  var turnEl=document.getElementById('turn'),turnTxt=document.getElementById('turnTxt');
+  var msgEl=document.getElementById('msg'),rollBtn=document.getElementById('rollBtn');
+  function msg(t){msgEl.textContent=t||'';}
+  function cur(){return game.players[game.turn];}
+  function isBot(){return game&&game.bots&&game.turn!==0;}
+  function updateHud(){
+    if(!game)return;
+    var c=cur();
+    turnEl.className=c;
+    turnTxt.textContent=game.phase==='over'?NAME[c]+' জিতেছে!':GEN[c]+' চাল'+(isBot()?' (কম্পিউটার)':'');
+    var can=game.phase==='roll'&&!isBot();
+    rollBtn.disabled=!can;diceEl.disabled=!can;
+  }
+
+  function movable(col,d){
+    var out=[];
+    P[col].forEach(function(p,i){
+      if((p===-1&&d===6)||(p>=0&&p+d<=56))out.push(i);
+    });
+    return out;
+  }
+  function clearMarks(){Object.keys(tokEls).forEach(function(c){tokEls[c].forEach(function(e){e.classList.remove('can');});});}
+  function markMovable(col,list){list.forEach(function(i){tokEls[col][i].classList.add('can');});}
+
+  function botPick(col,d,list){
+    var best=list[0],bs=-1;
+    list.forEach(function(i){
+      var p=P[col][i],np=p===-1?0:p+d,s=np;
+      if(p===-1)s+=50;
+      if(np===56)s+=100;
+      if(np<=50){
+        var a=(START[col]+np)%52;
+        if(SAFE.has(a))s+=20;
+        else game.players.forEach(function(o){
+          if(o===col)return;
+          P[o].forEach(function(q){if(q>=0&&q<=50&&(START[o]+q)%52===a)s+=80;});
+        });
+      }
+      if(s>bs){bs=s;best=i;}
+    });
+    return best;
+  }
+
+  function maybeBot(){
+    if(!isBot())return;
+    var my=gid;
+    setTimeout(function(){if(my===gid&&game&&game.phase==='roll')roll();},800);
+  }
+  function nextTurn(){
+    game.sixes=0;
+    game.turn=(game.turn+1)%game.players.length;
+    game.phase='roll';
+    clearMarks();updateHud();
+    msg(isBot()?'কম্পিউটার খেলছে...':'ছক্কা ফেলতে ট্যাপ করুন।');
+    maybeBot();
+  }
+
+  async function roll(){
+    if(!game||game.phase!=='roll')return;
+    var my=gid,col=cur();
+    game.phase='busy';updateHud();msg('');
+    diceEl.classList.add('rolling');
+    for(var k=0;k<8;k++){showDice(1+Math.floor(Math.random()*6));sfx('tick');await sleep(70);if(my!==gid)return;}
+    diceEl.classList.remove('rolling');
+    var d=1+Math.floor(Math.random()*6);
+    game.dice=d;showDice(d);sfx('land');
+    if(d===6)game.sixes++;else game.sixes=0;
+    if(game.sixes===3){
+      msg('টানা তিনটি ছক্কা! এই চাল বাতিল।');
+      await sleep(1200);if(my!==gid)return;
+      return nextTurn();
+    }
+    var mv=movable(col,d);
+    if(!mv.length){
+      msg(bn(d)+' পড়েছে, কিন্তু কোনো গুটি চলার মতো নেই।');sfx('no');
+      await sleep(1100);if(my!==gid)return;
+      return nextTurn();
+    }
+    if(mv.length===1||isBot()){
+      var pick=isBot()?botPick(col,d,mv):mv[0];
+      msg(bn(d)+' পড়েছে।');
+      await sleep(450);if(my!==gid)return;
+      return move(col,pick,d);
+    }
+    game.phase='pick';game.movable=mv;
+    markMovable(col,mv);
+    msg(bn(d)+' পড়েছে। কোন গুটি চালবেন? জ্বলজ্বল করা গুটিতে ট্যাপ করুন।');
+  }
+
+  async function move(col,i,d){
+    var my=gid,el=tokEls[col][i];
+    game.phase='busy';clearMarks();updateHud();
+    el.style.zIndex=30;
+    var p=P[col][i];
+    if(p===-1){P[col][i]=0;render();sfx('out');await sleep(320);}
+    else{
+      for(var s=0;s<d;s++){P[col][i]++;render();sfx('step');await sleep(170);if(my!==gid)return;}
+    }
+    if(my!==gid)return;
+    el.style.zIndex='';
+    p=P[col][i];
+    var cap=0;
+    if(p<=50){
+      var a=(START[col]+p)%52;
+      if(!SAFE.has(a)){
+        game.players.forEach(function(o){
+          if(o===col)return;
+          P[o].forEach(function(q,j){
+            if(q>=0&&q<=50&&(START[o]+q)%52===a){P[o][j]=-1;cap++;}
+          });
+        });
+      }
+    }
+    render();
+    if(P[col].every(function(q){return q===56;})){
+      game.phase='over';updateHud();sfx('win');
+      msg('অভিনন্দন! '+NAME[col]+' সবার আগে চারটি গুটি ঘরে পৌঁছে দিয়েছে।');
+      return;
+    }
+    if(cap>0)sfx('cap');else if(p===56)sfx('home');
+    if(cap>0||p===56||d===6){
+      if(cap>0)msg('বিপক্ষের গুটি ধরেছেন! আবার চাল।');
+      else if(p===56)msg('গুটি মাঝের ঘরে পৌঁছেছে! আবার চাল।');
+      else msg('ছক্কা পড়েছে, আবার চাল।');
+      await sleep(cap>0?900:500);if(my!==gid)return;
+      game.phase='roll';updateHud();maybeBot();
+      return;
+    }
+    nextTurn();
+  }
+
+  function onTok(col,i){
+    if(!game||game.phase!=='pick'||col!==cur()||game.movable.indexOf(i)<0)return;
+    move(col,i,game.dice);
+  }
+
+  function startGame(){
+    gid++;
+    var players=playersFor(setupCount);
+    createTokens(players);
+    game={players:players,turn:0,phase:'roll',sixes:0,dice:0,bots:setupBots,movable:[]};
+    setup.hidden=true;hud.hidden=false;
+    showDice(1);updateHud();
+    msg('ছক্কা ফেলতে ট্যাপ করুন।');
+  }
+  function backToSetup(){
+    gid++;game=null;
+    hud.hidden=true;setup.hidden=false;
+    diceEl.classList.remove('rolling');
+    createTokens(playersFor(setupCount));
+  }
+
+  diceEl.addEventListener('click',roll);
+  rollBtn.addEventListener('click',roll);
+  document.getElementById('startBtn').addEventListener('click',startGame);
+  document.getElementById('newBtn').addEventListener('click',backToSetup);
+  document.getElementById('muteBtn').addEventListener('click',function(e){
+    muted=!muted;
+    e.currentTarget.textContent=muted?'সাউন্ড: বন্ধ':'সাউন্ড: চালু';
+    if(!muted)sfx('land');
+  });
+  document.getElementById('botChk').addEventListener('change',function(e){setupBots=e.target.checked;});
+  document.getElementById('countSeg').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-n]');if(!b)return;
+    setupCount=parseInt(b.getAttribute('data-n'),10);
+    document.querySelectorAll('#countSeg button').forEach(function(x){
+      x.setAttribute('aria-pressed',x===b?'true':'false');
+    });
+    createTokens(playersFor(setupCount));
+  });
+
+  createTokens(playersFor(setupCount));
+})();
+</script>
+
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script>
+</body>
+</html>
